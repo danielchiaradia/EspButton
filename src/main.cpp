@@ -3,37 +3,35 @@
 #include <ESP8266HTTPClient.h>
 #include "Secrets.h"
 
-const String callback = "http://192.168.178.35:1880/buttons/m/";
-
 ADC_MODE(ADC_VCC);
 
 void setup()
 {
   pinMode(3, OUTPUT);
   digitalWrite(3, LOW);
+  long st = millis();
 
   if (WiFi.SSID() != WIFI_SSID)
   {
-    WiFi.hostname(HOSTNAME);
-    WiFi.mode(WIFI_STA);
-
     IPAddress local_IP(192, 168, 178, 49);
     IPAddress gateway(192, 168, 178, 1);
     IPAddress subnet(255, 255, 255, 0);
-
     WiFi.config(local_IP, gateway, subnet);
-    WiFi.begin(WIFI_SSID, PASSWORD);
-    WiFi.persistent(true);
+    WiFi.mode(WIFI_STA);
+    WiFi.hostname(HOSTNAME);
     WiFi.setAutoConnect(true);
     WiFi.setAutoReconnect(true);
+    
+    WiFi.begin(WIFI_SSID, PASSWORD, 1, bssid);
+    WiFi.persistent(true);
+    WiFi.setAutoConnect(true);
   }
 
   if (WiFi.waitForConnectResult() == WL_CONNECTED)
   {
     HTTPClient http;
-    http.begin(callback + ESP.getVcc());
+    http.begin(callback + ESP.getVcc() + "/" + (millis() - st));
     http.GET();
-    WiFi.disconnect(true);
   }
 
   digitalWrite(3, HIGH);
@@ -41,5 +39,6 @@ void setup()
 
 void loop()
 {
-  ESP.deepSleep(300);
+  // Set GPIO 3 to high should cut VCC anyways
+  ESP.deepSleep(10000);
 }
