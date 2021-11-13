@@ -5,6 +5,44 @@
 
 ADC_MODE(ADC_VCC);
 
+uint32_t getWifiChannel(String ssid)
+{
+  int networksFound = WiFi.scanNetworks();
+  int i;
+  for (i = 0; i < networksFound; i++)
+  {
+    if (ssid == WiFi.SSID(i))
+    {
+      return WiFi.channel(i);
+    }
+  }
+  return -1;
+}
+
+void setupWiFi()
+{
+  IPAddress local_IP(192, 168, 178, 49);
+  IPAddress gateway(192, 168, 178, 1);
+  IPAddress subnet(255, 255, 255, 0);
+  WiFi.config(local_IP, gateway, subnet);
+  WiFi.mode(WIFI_STA);
+  WiFi.hostname(HOSTNAME);
+  WiFi.setAutoConnect(true);
+  WiFi.setAutoReconnect(true);
+
+  int channel = getWifiChannel(WIFI_SSID);
+  WiFi.begin(WIFI_SSID, PASSWORD, channel, bssid);
+  WiFi.persistent(true);
+  WiFi.setAutoConnect(true);
+}
+
+void sendState(int start)  
+{
+  HTTPClient http;
+  http.begin(callback + ESP.getVcc() + "/" + (millis() - start));
+  http.GET();
+}
+
 void setup()
 {
   pinMode(3, OUTPUT);
@@ -13,25 +51,21 @@ void setup()
 
   if (WiFi.SSID() != WIFI_SSID)
   {
-    IPAddress local_IP(192, 168, 178, 49);
-    IPAddress gateway(192, 168, 178, 1);
-    IPAddress subnet(255, 255, 255, 0);
-    WiFi.config(local_IP, gateway, subnet);
-    WiFi.mode(WIFI_STA);
-    WiFi.hostname(HOSTNAME);
-    WiFi.setAutoConnect(true);
-    WiFi.setAutoReconnect(true);
-    
-    WiFi.begin(WIFI_SSID, PASSWORD, 1, bssid);
-    WiFi.persistent(true);
-    WiFi.setAutoConnect(true);
+    setupWiFi();
   }
 
-  if (WiFi.waitForConnectResult() == WL_CONNECTED)
+  if (WiFi.waitForConnectResult(6000) == WL_CONNECTED)
   {
-    HTTPClient http;
-    http.begin(callback + ESP.getVcc() + "/" + (millis() - st));
-    http.GET();
+    sendState(st);
+  }
+  else 
+  {
+    // channel changed
+    setupWiFi();
+    if (WiFi.waitForConnectResult(6000) == WL_CONNECTED)
+    {
+      sendState(st);
+    }
   }
 
   digitalWrite(3, HIGH);
